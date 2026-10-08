@@ -54,6 +54,23 @@ Skilling programmes exist, but matching people to the right course is weak. Unde
 - Installable **PWA** with an *Install app* button
 - Optional **Twilio WhatsApp and IVR channels** using the same interview and recommendation engine. See [Optional phone and WhatsApp channels](#optional-phone-and-whatsapp-channels) for setup.
 
+## Live job-market demand (SerpApi)
+
+Course recommendations use real, recent job listings from SerpApi's Google Jobs engine alongside the static state demand table. On a course card, expand **Where this leads** to see the listing count, an example listing, and the source. Live evidence can also raise a trade's demand level, but never lower it.
+
+The server searches for up to four relevant trades using generic trade-and-state queries. It does not send interview answers, audio, or contact details to SerpApi. Results are cached per state and trade; a monthly request budget and short request deadline limit cost and latency. If live search is disabled or unavailable, recommendations fall back to the static table.
+
+To enable and check SerpApi locally:
+
+```bash
+cd backend
+# Set SERPAPI_API_KEY in .env; never commit that file.
+npm run check:serpapi
+npm test
+```
+
+The officer-only `GET /api/livelihood/live-status` endpoint reports whether live search is enabled and its monthly usage. Send the `x-officer-key` header matching `OFFICER_KEY`.
+
 ## Tech stack
 
 | Layer | Technology |
