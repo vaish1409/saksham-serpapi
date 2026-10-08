@@ -33,6 +33,10 @@ services:
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      SERPAPI_API_KEY: ${SERPAPI_API_KEY:-}
+      SERPAPI_ENABLED: ${SERPAPI_ENABLED:-true}
+      SERPAPI_CACHE_DAYS: ${SERPAPI_CACHE_DAYS:-7}
+      SERPAPI_MONTHLY_BUDGET: ${SERPAPI_MONTHLY_BUDGET:-200}
     depends_on:
       postgres:
         condition: service_healthy

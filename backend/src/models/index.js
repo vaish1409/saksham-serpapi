@@ -6,6 +6,8 @@ const UserProgress = require('./UserProgress');
 const EligibilityCheck = require('./EligibilityCheck');
 const LivelihoodSession = require('./LivelihoodSession');
 const ChannelSession = require('./ChannelSession');
+const LiveDemand = require('./LiveDemand');
+const SerpApiUsage = require('./SerpApiUsage');
 
 // Associations
 User.hasMany(UserProgress, { foreignKey: 'userId', as: 'progress' });
@@ -26,4 +28,6 @@ module.exports = {
   EligibilityCheck,
   LivelihoodSession,
   ChannelSession,
+  LiveDemand,
+  SerpApiUsage,
 };

@@ -15,5 +15,6 @@ router.delete('/sessions/:id', c.deleteMine);
 router.get('/dashboard', officerOnly, c.dashboard);
 router.get('/sessions', officerOnly, c.listSessions);
 router.patch('/sessions/:id', officerOnly, c.updateSession);
+router.get('/live-status', officerOnly, c.liveStatus);
 
 module.exports = router;

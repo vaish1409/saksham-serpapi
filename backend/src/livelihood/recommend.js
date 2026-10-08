@@ -2,8 +2,12 @@
  * Recommender: profile -> ranked NSQF courses with reasons, skill gaps,
  * local opportunity, linked schemes and a human-review flag.
  *
- * Fully deterministic: the same profile always gives the same answer, and every
- * point in a score is tied to a sentence the person can read in their language.
+ * Fully deterministic: the same profile (and, when one is passed, the same demand
+ * snapshot) always gives the same answer, and every point in a score is tied to a
+ * sentence the person can read in their language.
+ *
+ * Demand data comes from opts.demand. It defaults to the static table in demand.js;
+ * the web endpoint passes a snapshot that also carries live job listings (liveDemand.js).
  */
 const { EDU_RANK, EDU_LABEL, TRADES } = require('./vocab');
 const { COURSES, BY_ID } = require('./courses');
@@ -37,6 +41,10 @@ const R = {
   current: (tr, l) => ({ en: `You already work in ${label(tr, 'en')}; this training gives you a certificate and better pay.`, hi: `आप पहले से यह काम करते हैं: ${label(tr, 'hi')}। यह ट्रेनिंग आपको प्रमाणपत्र और बेहतर कमाई दिलाएगी।` }[l]),
   demandHigh: (tr, st, l) => ({ en: `${cap(label(tr, 'en'))} work is in high demand in ${st}.`, hi: `${stateLabel(st, 'hi')} में इस क्षेत्र (${label(tr, 'hi')}) में काम की माँग बहुत ज़्यादा है।` }[l]),
   demandMid: (tr, st, l) => ({ en: `There is steady demand for ${label(tr, 'en')} work in ${st}.`, hi: `${stateLabel(st, 'hi')} में इस क्षेत्र (${label(tr, 'hi')}) में काम की माँग बनी रहती है।` }[l]),
+  liveListings: (tr, st, info, l) => {
+    const n = `${info.count}${info.capped ? '+' : ''}`;
+    return ({ en: `Recently, about ${n} job listings for ${label(tr, 'en')} were found in ${st}.`, hi: `हाल ही में ${stateLabel(st, 'hi')} में ${label(tr, 'hi')} के लिए लगभग ${n} नौकरी की सूचियाँ मिलीं।` }[l]);
+  },
   localWork: (l) => ({ en: 'People near you already do this work, so finding customers or a job should be easier.', hi: 'आपके आसपास लोग यह काम करते हैं, इसलिए ग्राहक या नौकरी मिलना आसान होगा।' }[l]),
   prefSelf: (l) => ({ en: 'This leads to your own small business, as you prefer.', hi: 'यह आपके पसंदीदा अपने छोटे काम की ओर ले जाता है।' }[l]),
   prefWage: (l) => ({ en: 'This leads to a job with a salary, as you prefer.', hi: 'यह आपकी पसंद की तरह नौकरी की ओर ले जाता है।' }[l]),
@@ -111,7 +119,8 @@ function schemeCard(s, lang) {
 }
 
 // ---------- main ----------
-function recommend(rawProfile, langIn) {
+function recommend(rawProfile, langIn, opts = {}) {
+  const D = opts.demand || demand; // static table unless a live snapshot is passed
   const lang = lang2(langIn);
   const profile = rawProfile || {};
   const state = profile.state || null;
@@ -135,7 +144,7 @@ function recommend(rawProfile, langIn) {
       const currentHit = overlap(c.trades, profile.currentActivity);
       const familyHit = overlap(c.trades, profile.familyOccupation);
       const localHit = overlap(c.trades, profile.localWork);
-      const bestDemand = Math.max(0, ...c.trades.map((tr) => demand.level(state, tr)));
+      const bestDemand = Math.max(0, ...c.trades.map((tr) => D.level(state, tr)));
 
       if (interestHit.length) { score += W.interest; reasons.push(R.interest(interestHit[0], lang)); }
       if (currentHit.length) { score += W.current; reasons.push(R.current(currentHit[0], lang)); }
@@ -143,8 +152,10 @@ function recommend(rawProfile, langIn) {
 
       if (bestDemand >= 2) {
         score += bestDemand * W.demandPerLevel;
-        const tr = c.trades.find((x) => demand.level(state, x) === bestDemand);
+        const tr = c.trades.find((x) => D.level(state, x) === bestDemand);
         reasons.push(bestDemand === 3 ? R.demandHigh(tr, state, lang) : R.demandMid(tr, state, lang));
+        const info = D.liveInfo ? D.liveInfo(state, tr) : null;
+        if (info && info.count > 0) reasons.push(R.liveListings(tr, state, info, lang));
       }
       if (localHit.length) { score += W.localWork; reasons.push(R.localWork(lang)); }
 
@@ -201,7 +212,7 @@ function recommend(rawProfile, langIn) {
       if (sc.onlyForTrades && !c.trades.some((tr) => sc.onlyForTrades.includes(tr))) return false;
       return true;
     });
-    const lvl = demand.level(state, trade);
+    const lvl = D.level(state, trade);
     return {
       rank: i + 1,
       fit: s.score >= 60 ? 'strong' : s.score >= 35 ? 'good' : 'possible',
@@ -226,7 +237,12 @@ function recommend(rawProfile, langIn) {
         role: c.roles[lang],
         enterprise: c.enterprise[lang],
       },
-      local: { level: lvl, high: lvl === 3, note: demand.note(state) ? demand.note(state)[lang] : null },
+      local: {
+        level: lvl,
+        high: lvl === 3,
+        note: D.note(state) ? D.note(state)[lang] : null,
+        ...(D.liveInfo ? { live: D.liveInfo(state, trade) } : {}), // only present when a live snapshot was passed
+      },
       microLesson: {
         title: MICRO[s.path].title[lang],
         speak: MICRO[s.path].speak[lang],
@@ -247,8 +263,8 @@ function recommend(rawProfile, langIn) {
   if (recommendations.length && recommendations.every((r) => r.fit === 'possible')) say('Only weak matches found.', 'केवल कमज़ोर मेल मिले।');
 
   const opp = {
-    note: state && demand.note(state) ? demand.note(state)[lang] : null,
-    topTrades: demand.topTrades(state, 3).map((x) => ({ trade: x.trade, label: label(x.trade, lang), level: x.level })),
+    note: state && D.note(state) ? D.note(state)[lang] : null,
+    topTrades: D.topTrades(state, 3).map((x) => ({ trade: x.trade, label: label(x.trade, lang), level: x.level })),
   };
 
   return {

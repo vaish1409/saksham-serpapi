@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle2, ChevronDown, Volume2, Briefcase, Store, MapPin, Award, Building2, Landmark, ExternalLink, TriangleAlert, Sprout } from 'lucide-react';
+import { CheckCircle2, ChevronDown, Volume2, Briefcase, Store, MapPin, Award, Building2, Landmark, ExternalLink, TriangleAlert, Sprout, Search } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
 const FIT_STYLE = {
@@ -104,6 +104,20 @@ export default function CourseCard({ rec, onListen, speaking }) {
             <MapPin size={16} className="mt-0.5 flex-shrink-0" />
             {local.note}
           </p>
+        )}
+        {local.live && local.live.count > 0 && (
+          <div className="bg-cream rounded-xl2 px-3 py-2">
+            <p className="flex items-start gap-2 font-semibold text-ink">
+              <Search size={16} className="mt-0.5 flex-shrink-0 text-teal" />
+              {t('liveListings')}: {local.live.count}{local.live.capped ? '+' : ''}
+            </p>
+            {local.live.sample?.[0] && (
+              <p className="text-sm text-gray-600">
+                {local.live.sample[0].title}{local.live.sample[0].company ? ` · ${local.live.sample[0].company}` : ''}
+              </p>
+            )}
+            <p className="text-xs text-gray-500">{t('liveSource')}</p>
+          </div>
         )}
       </Section>
 

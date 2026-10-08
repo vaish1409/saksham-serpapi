@@ -5,6 +5,7 @@ const { recommend } = require('../livelihood/recommend');
 const { COURSES } = require('../livelihood/courses');
 const { DEMAND } = require('../livelihood/demand');
 const { summarise } = require('../livelihood/dashboard');
+const { liveDemand } = require('../livelihood/liveDemand');
 
 const lang2 = (l) => (l === 'hi' ? 'hi' : 'en');
 
@@ -49,7 +50,9 @@ async function recommendHandler(req, res, next) {
   try {
     const { profile, lang, save, consent, contactPhone } = req.body || {};
     const clean = sanitizeProfile(profile);
-    const result = recommend(clean, lang);
+    // Live job-market snapshot (SerpApi). Never throws: with no key, or on any problem, this is just the static table.
+    const demandSnapshot = await liveDemand.snapshotFor(clean);
+    const result = recommend(clean, lang, { demand: demandSnapshot });
     let sessionId = null;
 
     if (save) {
@@ -72,7 +75,7 @@ async function recommendHandler(req, res, next) {
       });
       sessionId = row.id;
     }
-    res.json({ ...result, sessionId });
+    res.json({ ...result, live: demandSnapshot.meta, sessionId });
   } catch (err) {
     next(err);
   }
@@ -91,6 +94,15 @@ async function deleteMine(req, res, next) {
 }
 
 // ---------- officer / counsellor ----------
+
+// GET /api/livelihood/live-status — is live job data on, and how much of the SerpApi budget is used this month
+async function liveStatus(req, res, next) {
+  try {
+    res.json(await liveDemand.status());
+  } catch (err) {
+    next(err);
+  }
+}
 
 // GET /api/livelihood/dashboard?lang=
 async function dashboard(req, res, next) {
@@ -130,4 +142,4 @@ async function updateSession(req, res, next) {
   }
 }
 
-module.exports = { meta, catalog, turn, recommendHandler, deleteMine, dashboard, listSessions, updateSession };
+module.exports = { meta, catalog, turn, recommendHandler, deleteMine, dashboard, listSessions, updateSession, liveStatus };
