@@ -99,8 +99,8 @@ The earlier account-based app is also present: `/home`, `/lessons`, and `/profil
 You need Node.js 18+, npm and a PostgreSQL database.
 
 ```bash
-git clone https://github.com/vaish1409/government-scheme.git
-cd government-scheme
+git clone https://github.com/vaish1409/saksham-serpapi.git
+cd saksham-serpapi
 
 # 1) Backend
 cd backend
